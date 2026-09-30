@@ -545,6 +545,7 @@ export function createAgentChatStore(surface: AgentChatSurface, draftNamespace =
 
       setDraft: async (patch) => {
         const st = get();
+        const previousDraft = st.draft;
         let draft: ComposerDraft = { ...st.draft, ...patch };
         // A provider change re-seats model / effort / permission on the new
         // provider's defaults unless the caller set them explicitly.
@@ -583,7 +584,19 @@ export function createAgentChatStore(surface: AgentChatSurface, draftNamespace =
               sessions: s.sessions.map((x) => (x.session_id === sid ? { ...x, ...session } : x)),
             }));
           } catch (err) {
-            set({ lastError: errorText(err) });
+            // Do not leave the picker lying about the live session. The old
+            // optimistic update kept "Ollama" visible even when the backend
+            // rejected/failed the PATCH, while the next turn still ran on the
+            // previous provider (often Claude). Reconcile the composer to the
+            // last confirmed session instead.
+            if (get().activeSessionId === sid) {
+              const confirmed = get().activeSession;
+              const rollback = confirmed
+                ? draftFromSession(confirmed, previousDraft)
+                : previousDraft;
+              set({ draft: rollback, lastError: errorText(err) });
+              writeDraft(DRAFT_KEY, rollback);
+            }
           }
         }
       },
@@ -661,6 +674,11 @@ export function createAgentChatStore(surface: AgentChatSurface, draftNamespace =
               permission_mode: d.permissionMode,
               surface,
             });
+            if (session.provider !== d.provider) {
+              throw new Error(
+                `create-session provider mismatch: requested ${d.provider}, backend returned ${session.provider}`,
+              );
+            }
             sid = session.session_id;
             set({
               activeSessionId: sid,
