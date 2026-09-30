@@ -569,6 +569,12 @@ SHERPA_BUNDLES: dict[str, SherpaBundle] = {
         language="es",
         gender="masculine",
     ),
+    "vits-piper-pt_BR-edresson-low": _piper_bundle(
+        "vits-piper-pt_BR-edresson-low",
+        label="Edresson (Brazilian Portuguese)",
+        language="pt",
+        gender="masculine",
+    ),
     "vits-piper-de_DE-ramona-low": _piper_bundle(
         "vits-piper-de_DE-ramona-low",
         label="Ramona (German)",
@@ -596,6 +602,7 @@ PIPER_DEFAULT_VOICES: tuple[str, ...] = (
     "vits-piper-de_DE-thorsten-medium",
     "vits-piper-en_US-ryan-medium",
     "vits-piper-es_ES-davefx-medium",
+    "vits-piper-pt_BR-edresson-low",
 )
 
 LOCAL_PROVIDERS: tuple[LocalProvider, ...] = (
@@ -624,7 +631,7 @@ LOCAL_PROVIDERS: tuple[LocalProvider, ...] = (
         runtime="sherpa-onnx",
         model_id=PIPER_DEFAULT_VOICES[0],
         model_label="Piper voices",
-        download_size="about 200 MB",
+        download_size="about 270 MB",
         pip_package=SHERPA_ONNX_PACKAGE,
         bundles=PIPER_DEFAULT_VOICES,
     ),
