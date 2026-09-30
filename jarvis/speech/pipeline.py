@@ -447,6 +447,10 @@ _BRAIN_UNAVAILABLE_PHRASE: dict[str, str] = {
         "Lo siento, Ruben — ahora mismo no puedo acceder a ninguno de mis "
         "modelos de lenguaje. Comprueba si tus proveedores aún tienen crédito."
     ),
+    "pt": (
+        "Desculpe, Gu — não consigo acessar meu modelo de linguagem agora. "
+        "Vou tentar novamente assim que ele estiver disponível."
+    ),
 }
 
 # AD-OE6 zero-silent-drop fallback for the *final* utterance STT. A cloud STT
@@ -462,6 +466,7 @@ _STT_UNAVAILABLE_PHRASE: dict[str, str] = {
     ),
     "en": "Sorry, I didn't catch that just now. Could you say it again?",
     "es": "Perdona, no te he entendido bien ahora mismo. ¿Puedes repetirlo, por favor?",
+    "pt": "Desculpe, não consegui entender o que você disse. Pode repetir?",
 }
 
 # Honest cross-family fallback when a requested duplex provider cannot open a
@@ -480,6 +485,10 @@ _REALTIME_UNAVAILABLE_PHRASE: dict[str, str] = {
     "es": (
         "La conexión en tiempo real no está disponible ahora mismo. "
         "Cambiaré esta sesión al sistema de voz clásico."
+    ),
+    "pt": (
+        "A conexão em tempo real não está disponível agora. "
+        "Vou usar o modo de voz local nesta sessão."
     ),
 }
 
@@ -512,12 +521,14 @@ _TIMEOUT_TOOL_STALL_PHRASE: dict[str, str] = {
     ),
     "en": "I couldn't get an answer in time. A tool I was waiting on didn't respond.",
     "es": "No pude obtener una respuesta a tiempo. Una herramienta que esperaba no respondió.",
+    "pt": "Não consegui obter uma resposta a tempo. Uma ferramenta que eu estava aguardando não respondeu.",
 }
 
 _TIMEOUT_NO_ANSWER_PHRASE: dict[str, str] = {
     "de": "Das konnte ich gerade nicht herausfinden.",
     "en": "I couldn't find that out just now.",
     "es": "No pude averiguar eso ahora mismo.",
+    "pt": "Não consegui descobrir isso agora.",
 }
 
 # AD-OE6 zero-silent-drop fallback for an ABANDONED incomplete utterance. When
@@ -532,6 +543,7 @@ _CLARIFY_QUESTION_PHRASE: dict[str, str] = {
     "de": "Wie meinst du das genau?",
     "en": "What do you mean exactly?",
     "es": "¿Qué quieres decir exactamente?",
+    "pt": "O que você quis dizer exatamente?",
 }
 
 # AD-OE6 confirmation for a SUCCESSFUL wordless desktop-action turn. When the
@@ -548,10 +560,11 @@ _ACTION_DONE_PHRASE: dict[str, str] = {
     "de": "Erledigt.",
     "en": "Done.",
     "es": "Listo.",
+    "pt": "Pronto.",
 }
 
 
-_PHRASE_LANGS: frozenset[str] = frozenset({"de", "en", "es"})
+_PHRASE_LANGS: frozenset[str] = frozenset({"de", "en", "es", "pt"})
 
 
 def _phrase_lang(lang: str | None) -> str:
@@ -1906,8 +1919,11 @@ def _smalltalk_fallback_for_non_substantive(prompt: str, lang: str) -> str | Non
     )
     if not any(marker in low for marker in wellbeing_markers):
         return None
-    if _phrase_lang(lang) == "de":
+    resolved = _phrase_lang(lang)
+    if resolved == "de":
         return "Mir geht's gut, Ruben. Was machen wir als Naechstes?"
+    if resolved == "pt":
+        return "Estou bem, Gu. O que vamos fazer agora?"
     return "I'm good, Ruben. What's next?"
 
 
