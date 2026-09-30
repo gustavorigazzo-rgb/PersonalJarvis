@@ -273,6 +273,17 @@ class NemotronLocalSTT:
             confidence=1.0 if text else 0.0,
         )
 
+    async def warmup(self) -> None:
+        """Load the local recognizer off the first spoken turn.
+
+        The 690 MB model is deliberately lazy at construction time, but on
+        lower-power Windows laptops its first load can exceed the generic
+        eight-second final-STT deadline. Preloading in the background keeps the
+        UI boot fast while avoiding a first-command timeout.
+        """
+        async with self._decode_lock:
+            await asyncio.to_thread(self._ensure_model)
+
     async def aclose(self) -> None:
         """Release the recognizer so a switched-away provider frees its memory."""
         self._recognizer = None
