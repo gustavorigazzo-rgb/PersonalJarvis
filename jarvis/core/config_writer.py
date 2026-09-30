@@ -1924,6 +1924,7 @@ _VOICES_FOR_PROVIDER: dict[str, frozenset[str]] = {
             "vits-piper-en_US-amy-medium",
             "vits-piper-es_ES-davefx-medium",
             "vits-piper-es_ES-sharvard-medium",
+            "vits-piper-pt_BR-edresson-low",
         }
     ),
     "gemini-flash-tts": frozenset(
