@@ -537,11 +537,9 @@
     "recent": "Recientes",
     "pin_chat": "Fijar chat",
     "unpin_chat": "Desfijar chat",
-
     "jarvis_tools": "Herramientas Jarvis",
     "scheduled": "Programado",
     "more": "Más",
-
     "instance_dev_hint": "Instancia de desarrollo: una segunda copia de la app que puedes reiniciar libremente, con sus propios datos, puertos e icono. La app normal sigue funcionando al lado.",
     "surface_voice": "Voz",
     "surface_chat": "Chat",
@@ -3177,13 +3175,18 @@
       "es": {
         "label": "Español",
         "description": "Español para cada etiqueta y botón."
+      },
+      "pt": {
+        "label": "Português (Brasil)",
+        "description": "Portugués de Brasil para las respuestas de Jarvis."
       }
     },
     "reply_options": {
       "auto": "{name} refleja el idioma que hables o escribas.",
       "en": "{name} responde en inglés.",
       "de": "{name} responde en alemán.",
-      "es": "{name} responde en español."
+      "es": "{name} responde en español.",
+      "pt": "{name} responde en portugués de Brasil."
     },
     "stt_options": {
       "auto": "Detecta automáticamente el idioma que hablas.",
@@ -5160,9 +5163,22 @@
   },
   "society": {
     "groups": {
-      "create": "Nuevo equipo de agentes", "edit": "Editar equipo de agentes", "description": "Agrupa agentes en una entrada lateral. Cada agente conserva su propio chat.",
-      "name": "Nombre del equipo", "members": "Miembros", "cancel": "Cancelar", "save": "Guardar equipo", "delete": "Desagrupar", "delete_confirm": "¿Desagrupar estos agentes? Sus chats individuales permanecerán.",
-      "left_chat": "Chat izquierdo", "right_chat": "Chat derecho", "open": "Abrir", "open_individual": "Abrir el chat individual de {0}", "missing_member": "Selecciona un agente disponible para este chat.", "hold_to_group": "Mantén para agrupar", "release_to_group": "Suelta para agrupar"
+      "create": "Nuevo equipo de agentes",
+      "edit": "Editar equipo de agentes",
+      "description": "Agrupa agentes en una entrada lateral. Cada agente conserva su propio chat.",
+      "name": "Nombre del equipo",
+      "members": "Miembros",
+      "cancel": "Cancelar",
+      "save": "Guardar equipo",
+      "delete": "Desagrupar",
+      "delete_confirm": "¿Desagrupar estos agentes? Sus chats individuales permanecerán.",
+      "left_chat": "Chat izquierdo",
+      "right_chat": "Chat derecho",
+      "open": "Abrir",
+      "open_individual": "Abrir el chat individual de {0}",
+      "missing_member": "Selecciona un agente disponible para este chat.",
+      "hold_to_group": "Mantén para agrupar",
+      "release_to_group": "Suelta para agrupar"
     },
     "chat": {
       "placeholder": "Mensaje a {0}",
