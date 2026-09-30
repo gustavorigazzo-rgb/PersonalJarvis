@@ -540,7 +540,16 @@ class AgentChatService:
         if session is None:
             raise NoSuchSession(session_id)
         selected_runner = None
-        if session.surface == "jarvis":
+        # The front-page composer owns its provider/model pick. Do NOT reseat an
+        # explicitly valid Jarvis chat onto [brain.worker]: that setting belongs
+        # to background/task workers, not the user's typed conversation. The old
+        # code did exactly that on every send, so the composer could visibly say
+        # "Ollama · granite4.1:3b" while turn_started (and the actual request)
+        # silently ran on the configured Claude worker instead.
+        #
+        # Keep the legacy rescue only for a stale/invalid Jarvis session that no
+        # longer names a provider offered on this surface.
+        if session.surface == "jarvis" and not offers("jarvis", session.provider):
             from jarvis.core.model_selection import worker_selection
             from jarvis.core.runtime_refs import get_brain_manager
             from jarvis.core.task_agent import subscription_seat
