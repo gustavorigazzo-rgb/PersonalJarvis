@@ -148,7 +148,7 @@ class PendingIdBody(BaseModel):
 class LanguageBody(BaseModel):
     # Constrained so a bad value (e.g. "zh") is rejected with 422 at the boundary
     # instead of being written to jarvis.toml and silently normalised to "auto".
-    reply_language: Literal["auto", "de", "en", "es"]
+    reply_language: Literal["auto", "de", "en", "es", "pt"]
 
 
 class SecretBody(BaseModel):
