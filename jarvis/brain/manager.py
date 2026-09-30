@@ -2114,9 +2114,14 @@ def _extract_leaked_tool_call(text: str) -> tuple[str, dict[str, Any]] | None:
 
 # Single source of truth for the reply-language vocabulary (Python ↔ REST ↔ TS).
 # "auto" = mirror the user's input language; the rest hard-pin that language.
-SUPPORTED_REPLY_LANGUAGES: tuple[str, ...] = ("auto", "de", "en", "es")
+SUPPORTED_REPLY_LANGUAGES: tuple[str, ...] = ("auto", "de", "en", "es", "pt")
 _REPLY_LANGS: frozenset[str] = frozenset(SUPPORTED_REPLY_LANGUAGES)
-_REPLY_LANG_NAMES: dict[str, str] = {"de": "German", "en": "English", "es": "Spanish"}
+_REPLY_LANG_NAMES: dict[str, str] = {
+    "de": "German",
+    "en": "English",
+    "es": "Spanish",
+    "pt": "Brazilian Portuguese",
+}
 
 # Spoken confirmation for a deterministic reply-language switch (the
 # voice_command_gate "language_switch" path). Keyed by target code and phrased
@@ -2127,6 +2132,7 @@ _LANG_SWITCH_CONFIRM: dict[str, str] = {
     "de": "Erledigt — ich antworte ab jetzt auf Deutsch.",
     "en": "Done — I'll reply in English from now on.",
     "es": "Listo — a partir de ahora respondo en español.",
+    "pt": "Pronto — a partir de agora vou responder em português brasileiro.",
     "auto": "Erledigt — ich passe meine Sprache ab jetzt automatisch deiner an.",
 }
 
@@ -2137,6 +2143,7 @@ _LANG_SWITCH_CONFIRM_SESSION: dict[str, str] = {
     "de": "Für diese Sitzung antworte ich auf Deutsch — dauerhaft speichern hat nicht geklappt.",
     "en": "For this session I'll reply in English — saving it permanently didn't work.",
     "es": "Por esta sesión responderé en español — no pude guardarlo de forma permanente.",
+    "pt": "Nesta sessão vou responder em português brasileiro — não consegui salvar isso permanentemente.",
 }
 
 # Sub-agent (Heavy-Task worker) provider switch — the voice_command_gate
@@ -2473,6 +2480,11 @@ _PROVIDER_DOWN_PHRASES: dict[str, tuple[str, ...]] = {
         ),
         "No puedo responder ahora mismo: la conexión con mi modelo está fallando. Dame un segundo.",
     ),
+    "pt": (
+        "Desculpe, não consigo acessar meu modelo de linguagem agora. Só um momento.",
+        "Meu modelo de linguagem está indisponível no momento. Vou tentar novamente em instantes.",
+        "Não consigo responder agora — a conexão com o modelo falhou. Me dê um segundo.",
+    ),
 }
 
 
@@ -2704,6 +2716,10 @@ _MID_ANSWER_ERROR_PHRASES: dict[str, str] = {
     "es": (
         "Ejecuté los pasos, pero algo falló al redactar la respuesta. "
         "Vuelve a preguntarme en un momento."
+    ),
+    "pt": (
+        "Executei os passos, mas algo deu errado ao formular a resposta. "
+        "Pergunte novamente em instantes."
     ),
 }
 
@@ -3961,7 +3977,7 @@ class BrainManager:
 
     @property
     def reply_language(self) -> str:
-        """The active reply-language pin: ``auto`` | ``de`` | ``en`` | ``es``."""
+        """The active reply-language pin: ``auto`` | ``de`` | ``en`` | ``es`` | ``pt``."""
         return self._reply_language
 
     @property
@@ -13758,6 +13774,7 @@ _ACTION_FAILED_PHRASES: dict[str, str] = {
     ),
     "en": "I recognized the action but couldn't execute it.",
     "es": "Reconocí la acción, pero no pude ejecutarla.",
+    "pt": "Reconheci a ação, mas não consegui executá-la.",
 }
 
 # DIRECT local-action acknowledgement — see BrainManager._localize_direct_ack.
@@ -13773,6 +13790,7 @@ _OPEN_APP_ACK_PREFIX: dict[str, str] = {
     "de": "Gestartet:",  # i18n-allow: spoken German TTS acknowledgement
     "en": "Opened:",
     "es": "Abierto:",
+    "pt": "Aberto:",
 }
 
 
