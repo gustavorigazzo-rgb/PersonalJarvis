@@ -3754,12 +3754,31 @@ class BrainManager:
         kwargs: dict[str, Any] = {}
         if max_turns is not None:
             kwargs["max_turns"] = max_turns
+
+        # The global 32k output ceiling is appropriate for cloud/document work
+        # but pathological for a tiny local conversational model through
+        # Ollama's OpenAI-compatible endpoint. It can force a very large local
+        # generation/context budget and cause RAM/CPU thrash. Plain local chat
+        # gets a sane cap; action/document turns retain the configured ceiling.
+        private = _TURN_OVERRIDE.get()
+        compact_local = bool(
+            private is not None and private.tool_context.get("compact_local_chat")
+        )
+        request_max_tokens = (
+            min(int(self._config.brain.max_tokens), 512)
+            if compact_local
+            else self._config.brain.max_tokens
+        )
+        if compact_local:
+            reasoning_effort = "none"
+            deadline_s = min(deadline_s, 20.0) if deadline_s is not None else 20.0
+
         return BrainDispatcher(
             brain,
             tools=tools,
             executor=self._tool_executor,
             system_prompt=system_prompt,
-            max_tokens=self._config.brain.max_tokens,
+            max_tokens=request_max_tokens,
             deadline_s=deadline_s,
             reasoning_effort=reasoning_effort,
             tool_context=tool_context,
@@ -10737,6 +10756,11 @@ class BrainManager:
         """
         pick: tuple[str, str | None] = (override.provider, override.model)
         chain: list[tuple[str, str | None]] = [pick]
+        # A compact local conversation is intentionally tool-less. Do not prepend
+        # the intelligent-router helper: that defeats the fast path and may wake
+        # a second provider before Ollama can answer.
+        if override.tool_context.get("compact_local_chat"):
+            return chain
         intelligent = bool(getattr(self._config.brain.routing, "intelligent_router", True))
         if (
             intelligent
