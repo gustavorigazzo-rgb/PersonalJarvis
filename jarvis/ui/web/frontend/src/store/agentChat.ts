@@ -687,6 +687,43 @@ export function createAgentChatStore(surface: AgentChatSurface, draftNamespace =
               sessions: [session, ...get().sessions],
             });
             connect(sid, 0);
+          } else {
+            // A provider/model picker PATCH is asynchronous. If the user picks
+            // Ollama and immediately presses Send, the old implementation could
+            // submit the message before that PATCH reached the backend, so the
+            // UI said "Ollama" while the live session still ran on Claude.
+            // Reconcile the session to the CURRENT draft synchronously at the
+            // send boundary: either the selected provider is confirmed, or we
+            // fail the send instead of silently using the wrong brain.
+            const live = get().activeSession;
+            const d = get().draft;
+            if (
+              live &&
+              (
+                live.provider !== d.provider ||
+                live.model !== d.model ||
+                live.effort !== d.effort ||
+                live.permission_mode !== d.permissionMode
+              )
+            ) {
+              const confirmed = await patchAgentChatSession(sid, {
+                provider: d.provider,
+                model: d.model,
+                effort: d.effort,
+                permission_mode: d.permissionMode,
+              });
+              if (confirmed.provider !== d.provider) {
+                throw new Error(
+                  `provider switch was not applied: requested ${d.provider}, backend returned ${confirmed.provider}`,
+                );
+              }
+              set((s) => ({
+                activeSession: s.activeSessionId === sid ? confirmed : s.activeSession,
+                sessions: s.sessions.map((x) =>
+                  x.session_id === sid ? { ...x, ...confirmed } : x
+                ),
+              }));
+            }
           }
           await sendAgentChatMessage(sid, content, attachments, toolChoices);
           if (get().activeSessionId === sid) void get().loadSessions();
