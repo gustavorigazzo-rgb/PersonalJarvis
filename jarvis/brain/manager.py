@@ -4229,6 +4229,40 @@ class BrainManager:
         6. Base-Prompt       — voice rules
         """
         private = _TURN_OVERRIDE.get()
+        if (
+            private is not None
+            and private.tool_context.get("compact_local_chat")
+            and not getattr(self, "_evidence_required_tool", "")
+        ):
+            # Local conversation fast path. The normal Jarvis prompt is deliberately
+            # rich (persona, memory, society, tool routing, every tool schema) and
+            # is tens of thousands of characters long. That is fine for hosted
+            # frontier models but can turn a 3B CPU-local model's sub-second direct
+            # reply into minutes of prompt evaluation. For a turn that has already
+            # been classified as ordinary conversation, keep only identity, current
+            # local time, delivery style and the user's reply-language pin.
+            from datetime import datetime  # noqa: PLC0415
+
+            name = resolve_assistant_name(getattr(self, "_config", None))
+            now = datetime.now().astimezone()
+            compact_parts = [
+                (
+                    f"You are {name}, the user's personal assistant. "
+                    "Answer the user's request directly and naturally. "
+                    "Do not claim to have used tools or external data in this turn."
+                ),
+                f"Current local date and time: {now.strftime('%Y-%m-%d %H:%M %Z')}.",
+            ]
+            identity = getattr(self, "_active_turn_identity", None)
+            if identity:
+                compact_parts.append(
+                    _provider_identity_directive(identity[0], identity[1], name)
+                )
+            if _is_written_turn():
+                compact_parts.append(_WRITTEN_CHAT_STYLE)
+            compact_parts.append(self._reply_language_directive())
+            return "\n\n".join(part for part in compact_parts if part)
+
         if private is not None and private.tool_context.get("tool_origin") == "society":
             # An agent's own notebooks are its profile source. Do not append
             # Jarvis' global USER.md, contacts, persona or ambient core memory.
