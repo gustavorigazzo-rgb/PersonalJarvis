@@ -14415,22 +14415,34 @@ class SpeechPipeline:
         # same-provider rate-limit retry.
         await self._drain_stale_probe()
         last_exc: BaseException | None = None
-        for attempt in range(_STT_FINAL_RETRIES + 1):
+        # Local native recognizers are not cancellable mid-inference: cancelling
+        # asyncio.to_thread only drops the awaiter while the model load/decode
+        # keeps running. Retrying a timed-out local call therefore stacks work
+        # and makes the first command dramatically slower. Nemotron's cold load
+        # can exceed the generic 8 s cloud-oriented deadline on modest CPUs, so
+        # give on-device STT one longer attempt and no duplicate retries.
+        local_stt = bool(getattr(self._utterance_stt, "runs_on_device", False))
+        provider_name = str(getattr(self._utterance_stt, "name", "") or "")
+        final_timeout_s = self._stt_final_timeout_s
+        if provider_name == "nemotron-local":
+            final_timeout_s = max(final_timeout_s, 20.0)
+        attempts = 1 if local_stt else (_STT_FINAL_RETRIES + 1)
+        for attempt in range(attempts):
             stt_task = asyncio.create_task(
                 self._utterance_stt.transcribe_pcm(pcm), name="stt-final"
             )
             try:
                 return await asyncio.wait_for(
-                    stt_task, timeout=self._stt_final_timeout_s
+                    stt_task, timeout=final_timeout_s
                 )
             except TimeoutError as exc:
                 stt_task.cancel()
                 last_exc = exc
                 log.warning(
                     "STT final timeout after %.1fs (attempt %d/%d)",
-                    self._stt_final_timeout_s,
+                    final_timeout_s,
                     attempt + 1,
-                    _STT_FINAL_RETRIES + 1,
+                    attempts,
                 )
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
@@ -14446,13 +14458,13 @@ class SpeechPipeline:
                     "STT transient error %s (attempt %d/%d)",
                     _stt_error_status(exc),
                     attempt + 1,
-                    _STT_FINAL_RETRIES + 1,
+                    attempts,
                 )
-            if attempt < _STT_FINAL_RETRIES:
+            if attempt < attempts - 1:
                 await asyncio.sleep(_stt_retry_delay(last_exc, attempt))
         log.error(
             "STT final exhausted %d attempts (last error: %s)",
-            _STT_FINAL_RETRIES + 1,
+            attempts,
             last_exc,
         )
         return await self._transcribe_final_crossing(pcm, last_exc)
@@ -16733,7 +16745,7 @@ class SpeechPipeline:
         except Exception as exc:  # noqa: BLE001
             log.warning("Brain-unavailable fallback speak failed: %s", exc)
 
-    async def _speak_stt_unavailable(self, lang: str = "de") -> None:
+    async def _speak_stt_unavailable(self, lang: str | None = None) -> None:
         """Zero-silent-drop (AD-OE6) for STT: say we couldn't transcribe the
         utterance instead of dropping back to LISTENING mute when
         ``_transcribe_final`` exhausted its retries (sustained cloud rate-limit
@@ -16742,7 +16754,8 @@ class SpeechPipeline:
         primary; runtime TTS auto-detects anyway). Failures here are swallowed:
         the fallback must never itself crash the turn.
         """
-        picker_lang = _phrase_lang(lang)
+        resolved_lang = lang or self._output_language(None, "")
+        picker_lang = _phrase_lang(resolved_lang)
         phrase = _STT_UNAVAILABLE_PHRASE[picker_lang]
         try:
             await self._set_turn_state(TurnTakingState.JARVIS_SPEAKING)
