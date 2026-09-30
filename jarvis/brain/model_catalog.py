@@ -343,9 +343,10 @@ def _ids(ids: list[str]) -> list[ModelInfo]:
 TTS_CATALOG: dict[str, tuple[str, list[ModelInfo]]] = {
     # Piper (on-device). A Piper voice speaks ONE language, so this picker is a
     # speaker choice, not a language choice: the provider still resolves the
-    # file from the turn's output language. Both sets are listed; the masculine
-    # trio is what the install downloads, and the feminine one is fetched on
-    # demand. Kept in sync with SHERPA_BUNDLES in jarvis/speech/local_models.py.
+    # file from the turn's output language. Installed defaults include German,
+    # English, Spanish and Brazilian Portuguese; additional feminine voices are
+    # fetched on demand. Kept in sync with SHERPA_BUNDLES in
+    # jarvis/speech/local_models.py.
     "piper-local": (
         "voice",
         _curated(
@@ -353,6 +354,7 @@ TTS_CATALOG: dict[str, tuple[str, list[ModelInfo]]] = {
                 ("vits-piper-de_DE-thorsten-medium", "Thorsten — German, masculine"),
                 ("vits-piper-en_US-ryan-medium", "Ryan — English, masculine"),
                 ("vits-piper-es_ES-davefx-medium", "Dave — Spanish, masculine"),
+                ("vits-piper-pt_BR-edresson-low", "Edresson — Brazilian Portuguese, masculine"),
                 ("vits-piper-de_DE-ramona-low", "Ramona — German, feminine"),
                 ("vits-piper-en_US-amy-medium", "Amy — English, feminine"),
                 ("vits-piper-es_ES-sharvard-medium", "Sharvard — Spanish, feminine"),
