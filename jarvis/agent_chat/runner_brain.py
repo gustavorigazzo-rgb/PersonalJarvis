@@ -145,6 +145,7 @@ def build_override(
     ref: str,
     kit_tools: Mapping[str, Tool] | None = None,
     system_extra: str = "",
+    compact_local_chat: bool = False,
 ) -> TurnOverride:
     """The pick for this turn: the session's provider / model / effort, the
     surface's hands (its kit's tools, else the folder's), and the tool context
@@ -164,6 +165,7 @@ def build_override(
             dict(kit_tools) if kit_tools is not None else folder_tools(cwd, stance=stance)
         ),
         tool_filter=_compose_filters(
+            (lambda _tools: {}) if compact_local_chat else None,
             kit.tool_filter,
             kit.session_tool_filter(session) if kit.session_tool_filter is not None else None,
             plan_filter if stance == PLAN_STANCE else None,
@@ -178,6 +180,7 @@ def build_override(
             "approval_ref": ref,
             "approval_timeout_s": APPROVAL_TIMEOUT_S,
             "tool_origin": kit.tool_origin,
+            **({"compact_local_chat": True} if compact_local_chat else {}),
             **({"chat_read_only": True} if stance == PLAN_STANCE else {}),
             "cwd": str(cwd),
         },
@@ -463,6 +466,27 @@ async def run_brain_turn(
         except ValueError as exc:
             await finish("error", {}, str(exc))
             return
+    # A small local model should not pay the full Jarvis tool/persona prompt
+    # tax for ordinary conversation. The full surface is still used whenever
+    # the turn looks actionable, carries explicit tool picks, or uses another
+    # provider. This keeps local chat responsive without weakening action turns.
+    compact_local_chat = False
+    if session.provider == "ollama" and not tool_choices:
+        action_probe = getattr(brain, "_turn_has_action_intent", None)
+        try:
+            compact_local_chat = not bool(action_probe(text)) if callable(action_probe) else False
+        except Exception:
+            compact_local_chat = False
+        if compact_local_chat:
+            # Requests that explicitly need external/live state stay on the full
+            # tool surface even if the generic action detector is conservative.
+            compact_local_chat = re.search(
+                r"\b(?:pesquis|busc|procure|internet|web|site|not[ií]cia|pre[cç]o|clima|tempo\s+em|"
+                r"email|gmail|calend[aá]rio|agenda|arquivo|pasta|tela|janela|abra|abrir|feche|fechar|"
+                r"envie|enviar|crie|criar|salve|salvar|delete|apague|execute|rode|instale|baixe)\b",
+                text,
+                re.IGNORECASE,
+            ) is None
     override = build_override(
         session,
         brain,
@@ -471,6 +495,7 @@ async def run_brain_turn(
         ref=ref,
         kit_tools=kit_tools,
         system_extra=system_extra,
+        compact_local_chat=compact_local_chat,
     )
     _note_skill_trigger(brain, text)
 
