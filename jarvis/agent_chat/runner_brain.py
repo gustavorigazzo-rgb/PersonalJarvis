@@ -155,7 +155,9 @@ def build_override(
     model = (session.model or "").strip() or _default_model(brain, provider)
     effort = normalize_effort(provider, session.effort)
     reasoning_effort: ReasoningEffort | None = (
-        effort if effort in _EFFORTS else None  # type: ignore[assignment]
+        "none"
+        if compact_local_chat
+        else effort if effort in _EFFORTS else None  # type: ignore[assignment]
     )
     return TurnOverride(
         provider=provider,
@@ -184,7 +186,7 @@ def build_override(
             **({"chat_read_only": True} if stance == PLAN_STANCE else {}),
             "cwd": str(cwd),
         },
-        max_turns=kit.max_turns or MAX_TURNS,
+        max_turns=1 if compact_local_chat else (kit.max_turns or MAX_TURNS),
     )
 
 
@@ -445,7 +447,35 @@ async def run_brain_turn(
 
     cwd = Path(session.cwd or Path.home())
     stance = handle.stance or "ask"
-    kit_tools, system_extra = await kit_payload(session, brain)
+
+    # Local 3B models must not inherit the heavyweight Jarvis surface for a
+    # plain conversational turn. Use an intentionally conservative list of
+    # intents that genuinely require live state / tools; everything else stays
+    # compact. This is safer than the broad CapabilityRegistry action detector,
+    # which classifies ordinary imperatives such as "responda apenas..." as an
+    # action and accidentally sends the 50k+ prompt/tool surface to Ollama.
+    compact_local_chat = False
+    if session.provider == "ollama" and not tool_choices:
+        needs_live_tools = re.search(
+            r"\b(?:pesquis\w*|busc\w*|procur\w*|internet|web|site|not[ií]cia\w*|"
+            r"pre[cç]o\w*|clima|tempo\s+em|email|e-mail|gmail|calend[aá]rio|agenda|"
+            r"arquivo\w*|pasta\w*|tela|janela|programa\w*|aplicativo\w*|"
+            r"abr\w*|fech\w*|envi\w*|cri\w*\s+(?:arquivo|pasta|documento)|"
+            r"salv\w*|apag\w*|delet\w*|execut\w*|rod\w*|instal\w*|baix\w*|"
+            r"agend\w*|marc\w*\s+(?:reuni[aã]o|compromisso)|whatsapp|mensagem\w*\s+para)\b",
+            text,
+            re.IGNORECASE,
+        )
+        compact_local_chat = needs_live_tools is None
+
+    if compact_local_chat:
+        # Do not even BUILD the expensive session/tool kit for a plain local
+        # conversation. The override below also removes the global tool surface.
+        kit_tools, system_extra = {}, ""
+        log.info("Ollama compact chat enabled for this turn")
+    else:
+        kit_tools, system_extra = await kit_payload(session, brain)
+
     if tool_choices:
         from jarvis.agent_chat.tool_catalog import (
             live_catalog,
@@ -466,27 +496,6 @@ async def run_brain_turn(
         except ValueError as exc:
             await finish("error", {}, str(exc))
             return
-    # A small local model should not pay the full Jarvis tool/persona prompt
-    # tax for ordinary conversation. The full surface is still used whenever
-    # the turn looks actionable, carries explicit tool picks, or uses another
-    # provider. This keeps local chat responsive without weakening action turns.
-    compact_local_chat = False
-    if session.provider == "ollama" and not tool_choices:
-        action_probe = getattr(brain, "_turn_has_action_intent", None)
-        try:
-            compact_local_chat = not bool(action_probe(text)) if callable(action_probe) else False
-        except Exception:
-            compact_local_chat = False
-        if compact_local_chat:
-            # Requests that explicitly need external/live state stay on the full
-            # tool surface even if the generic action detector is conservative.
-            compact_local_chat = re.search(
-                r"\b(?:pesquis|busc|procure|internet|web|site|not[ií]cia|pre[cç]o|clima|tempo\s+em|"
-                r"email|gmail|calend[aá]rio|agenda|arquivo|pasta|tela|janela|abra|abrir|feche|fechar|"
-                r"envie|enviar|crie|criar|salve|salvar|delete|apague|execute|rode|instale|baixe)\b",
-                text,
-                re.IGNORECASE,
-            ) is None
     override = build_override(
         session,
         brain,
@@ -581,7 +590,10 @@ async def _generate(
     from jarvis.core.config import get_jarvis_agent_secret, override_provider_secrets
 
     session = handle.session
-    history = brain_history_from_events(handle.history)
+    compact_local_chat = bool(override.tool_context.get("compact_local_chat"))
+    history = brain_history_from_events(
+        handle.history, max_messages=6 if compact_local_chat else _HISTORY_MAX
+    )
     output_language = getattr(handle, "output_language", "")
     if session.surface == "society":
         from jarvis.society.reply_preference import resolve_agent_reply_language
