@@ -15,9 +15,19 @@ import sys
 if sys.platform != "win32":
     raise SystemExit("This helper is intended for Windows only.")
 
-# pywebview also understands this variable, but PersonalJarvis explicitly passes
-# gui="edgechromium" on Windows. Patch start() so the explicit default is replaced
-# with Qt without changing the upstream desktop_app implementation.
+# Verify the Qt backend first. pywebview normally falls back to WinForms when Qt
+# is incomplete; on machines where Smart App Control blocks Python.Runtime.dll,
+# that fallback only recreates the original crash. Fail clearly instead.
+try:
+    import qtpy  # noqa: F401
+    from qtpy.QtWebEngineWidgets import QWebEngineView  # noqa: F401
+except Exception as exc:
+    raise SystemExit(
+        "Qt desktop backend is not ready. Run:\n"
+        "  python -m pip install \"pywebview[pyside6]\"\n"
+        f"Details: {type(exc).__name__}: {exc}"
+    ) from exc
+
 os.environ["PYWEBVIEW_GUI"] = "qt"
 
 import webview  # noqa: E402
