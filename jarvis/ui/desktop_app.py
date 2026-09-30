@@ -4189,6 +4189,22 @@ class DesktopApp:
                         wake_task.cancel()
                     raise
             _t_stt = time.perf_counter()
+            # Warm local recognizers in the background. Nemotron intentionally
+            # constructs cheaply and loads its 690 MB weights lazily; without
+            # this, the first spoken command pays the whole model-load cost and
+            # can hit the final-STT timeout before the brain even sees text.
+            _stt_warmup = getattr(stt, "warmup", None)
+            if callable(_stt_warmup):
+                _warm_task = asyncio.create_task(
+                    _stt_warmup(), name="utterance-stt-warmup"
+                )
+                _warm_task.add_done_callback(
+                    lambda task: (
+                        None
+                        if task.cancelled()
+                        else task.exception()
+                    )
+                )
             _call_hk, _ptt_hk = self.cfg.trigger.resolve_hotkeys()
             pipeline = SpeechPipeline(
                 call_hotkeys=_call_hk,
